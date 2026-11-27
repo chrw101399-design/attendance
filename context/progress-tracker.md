@@ -212,7 +212,8 @@
 - Fixed production root rendering a raw Next.js redirect/RSC payload: replaced the static-export server redirect with a client-side full-page redirect to `/admin` and a visible fallback link.
 - Strengthened deployment verification to require the root admin link and reject `NEXT_REDIRECT` output.
 - Local verification: `npm test` — PASS: 43 tests; `npm run check` — PASS; `npm run build` — PASS; `npx wrangler deploy --dry-run` — PASS. Confirmed generated `out/index.html` contains the fallback link and no `NEXT_REDIRECT` or `__next_error__`.
-- Production deployment verification will run on the next `main` push.
+- GitHub Actions run 5 (`45956051961`, commit `716683d82393f1f319563df6d792620db6904af0`) — PASS: root-page content check, production deployment, and Access-route verification.
+- Browser check of `/` now proceeds to the Cloudflare Access login for `/admin`; the raw RSC payload is no longer served as the page.
 
 ### F-013
 
