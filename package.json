@@ -9,7 +9,7 @@
     "deploy": "wrangler deploy",
     "verify:deployment": "node scripts/verify-deployment.mjs",
     "template": "node scripts/make-template.mjs",
-    "test": "node --test tests",
+    "test": "node --test \"tests/*.test.ts\"",
     "check": "tsc --noEmit"
   },
   "dependencies": {
