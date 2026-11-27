@@ -40,7 +40,7 @@
 | F-010 | Mirror Durable Object events to Sheets with retry/lag status | P0 | DONE | F-003, F-008 |
 | F-011 | Admin event/session/import/review/export UI | P1 | DONE | F-004–F-010 |
 | F-012 | Secure admin with Cloudflare Access and deploy from GitHub | P0 | DONE | F-011 |
-| F-013 | Event runbook, load/failure rehearsal, release readiness | P0 | TODO | F-012 |
+| F-013 | Event runbook, load/failure rehearsal, release readiness | P0 | IN PROGRESS | F-012 |
 
 ## Implementation log
 
@@ -215,14 +215,25 @@
 - GitHub Actions run 5 (`45956051961`, commit `716683d82393f1f319563df6d792620db6904af0`) — PASS: root-page content check, production deployment, and Access-route verification.
 - Browser check of `/` now proceeds to the Cloudflare Access login for `/admin`; the raw RSC payload is no longer served as the page.
 
-### F-013
+### 2026-11-27 — F-013 implementation started
 
-F-013 starts after F-012 deployment verification.
+- Added `tests/f013-release.test.ts` with 500 concurrent check-in submissions. Result: exactly one successful attendance, 499 duplicates, and 500 auditable attempts.
+- Added Sheets outage/recovery rehearsal using the mirror flush seam. Check-ins remain durable during outage; 500 outbox rows catch up in ten 50-row batches after recovery; each ID writes once.
+- Added Durable Object rehydration test: a new `EventDurableObject` instance using persisted storage recovers event, session, and attendance summary.
+- Added `F-013 event-day runbook` and staging/manual rehearsal checklist to `README.md`, covering T-30, live monitoring, fallback desk, close-out, export, and archive.
+- Added a functional attendee check-in page with roster type-ahead, duplicate and rejection states, identity-collision confirmation, and self-registration.
+- Added a browser-rendered kiosk QR display with rotating and static-fallback token URLs and added a scannable kiosk link to the admin session controls.
+- `npm test` — PASS: 46 tests, 0 fail.
+- `npm run check` — PASS.
+- `npm run build` — PASS.
+- Remaining: staging and live venue rehearsal on two or more real devices over venue Wi-Fi and mobile data.
 
 ## Current next actions
 
-1. Begin F-013 using the acceptance criteria in `feature-spec.md`.
-2. Keep Access secrets and Google credentials out of source/context.
+1. Implement attendee-facing check-in flow and scannable QR display.
+2. Run staging rehearsal on two or more real mobile devices over venue Wi-Fi and mobile data.
+3. Record live rehearsal evidence before marking F-013 DONE.
+4. Keep Access secrets and Google credentials out of source/context.
 
 ## Decisions and deviations
 

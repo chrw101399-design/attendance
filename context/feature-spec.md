@@ -177,6 +177,7 @@
 - Durable Object restart/eviction test confirms persisted state recovery.
 - Event-day runbook covers T-30, live monitoring, fallback desk process, close-out/export/archive.
 - Final rehearsal checks actual mobile devices and venue/mobile-data access.
+- **Status:** IN PROGRESS. Automated 500-concurrency, Sheets outage/recovery, and DO rehydration rehearsals pass; attendee and kiosk UI are implemented. Real-device and venue network rehearsal remain manual.
 
 ## 3. TDD feature template
 

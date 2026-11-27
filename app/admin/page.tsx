@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import QRCode from "qrcode";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 
@@ -12,6 +13,18 @@ type Attendee = { attendeeId: string; fullName: string; source: string; needsRev
 type Attendance = { tsUtc: string; sessionId: string; attendeeId: string; result: string; detail: string };
 type Summary = { attendees: number; present: number; late: number; duplicates: number; collisions: number; pendingMirror: number };
 type MirrorStatus = { pending: number; lagMs: number; warning: boolean; lastSuccessAt: string | null };
+type QrState = { token: string; expiresAt: number; static: boolean; imageUrl: string };
+
+const liveLinks = [
+  ["Production home", "/"],
+  ["Admin console", "/admin"],
+  ["Attendee check-in", "/checkin.html"],
+  ["Kiosk", "/kiosk.html"],
+  ["Health", "/api/health"],
+  ["Durable Object health", "/api/health/do"],
+  ["Sheets health", "/api/health/sheets"],
+  ["Attendance template", "/attendance-template.xlsx"],
+] as const;
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
@@ -28,7 +41,8 @@ export default function AdminPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [mirror, setMirror] = useState<MirrorStatus | null>(null);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
-  const [qr, setQr] = useState<{ token: string; expiresAt: number; static: boolean } | null>(null);
+  const [qr, setQr] = useState<QrState | null>(null);
+  const [qrSessionId, setQrSessionId] = useState("");
   const [collisions, setCollisions] = useState<Attendee[]>([]);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -80,6 +94,9 @@ export default function AdminPage() {
 
   async function saveSession() {
     if (!eventId || !sessionForm.label || !sessionForm.startAt || !sessionForm.endAt) return setMessage("Event, label, start, and end required.");
+    const start = new Date(sessionForm.startAt);
+    const end = new Date(sessionForm.endAt);
+    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) return setMessage("End time must be after start time.");
     setBusy(true); setMessage("");
     try {
       const toUtc = (value: string) => new Date(value).toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -95,8 +112,15 @@ export default function AdminPage() {
   }
 
   async function loadQr(sessionId: string) {
-    try { const body = await json<{ token: string; expiresAt: number; static: boolean }>(`/api/token/${encodeURIComponent(eventId)}/${encodeURIComponent(sessionId)}`); setQr(body); }
-    catch (error) { setMessage(error instanceof Error ? error.message : "QR token failed"); }
+    try {
+      const body = await json<{ token: string; expiresAt: number; static: boolean }>(`/api/token/${encodeURIComponent(eventId)}/${encodeURIComponent(sessionId)}`);
+      const checkInUrl = new URL("/checkin.html", window.location.origin);
+      checkInUrl.searchParams.set("eventId", eventId); checkInUrl.searchParams.set("sessionId", sessionId); checkInUrl.searchParams.set("token", body.token);
+      const imageUrl = await QRCode.toDataURL(checkInUrl.toString(), { width: 420, margin: 2, errorCorrectionLevel: "M" });
+      setQr({ ...body, imageUrl });
+      setQrSessionId(sessionId);
+      setMessage("Kiosk QR refreshed. Open scannable kiosk for current QR image.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "QR token failed"); }
   }
 
   async function loadFile(file: File) {
@@ -129,13 +153,16 @@ export default function AdminPage() {
   }
 
   return <main>
-    <p className="eyebrow">Attendance system</p><h1>Admin console</h1><p className="lead">Operate events, sessions, roster, check-in, review, and export.</p>
+    <header className="mb-6">
+      <p className="eyebrow">Attendance system</p><h1>Admin console</h1><p className="lead">Operate events, sessions, roster, check-in, review, and export.</p>
+      <nav aria-label="Live website pages"><h2 className="mb-3 text-xl font-bold">Live website</h2><ul className="link-grid">{liveLinks.map(([label, path]) => <li key={path}><a href={path} target="_blank" rel="noopener">{label}<span className="block text-sm font-normal text-slate-500">{path}</span></a></li>)}</ul></nav>
+    </header>
     {message && <p className="notice" role="status">{message}</p>}
     <section><h2>Event</h2><label>Event<select value={eventId} onChange={(e) => setEventId(e.target.value)}><option value="">New event</option>{events.map((item) => <option key={item.eventId} value={item.eventId}>{item.eventId} — {item.name}</option>)}</select></label><div className="mapping-grid"><label>Name<input value={eventForm.name} onChange={(e) => setEventForm({ ...eventForm, name: e.target.value })} /></label><label>Date<input type="date" value={eventForm.eventDate} onChange={(e) => setEventForm({ ...eventForm, eventDate: e.target.value })} /></label><label>Roster mode<select value={eventForm.rosterMode} onChange={(e) => setEventForm({ ...eventForm, rosterMode: e.target.value as EventRecord["rosterMode"] })}><option value="closed">closed</option><option value="hybrid">hybrid</option><option value="open">open</option></select></label><label>Status<select value={eventForm.status} onChange={(e) => setEventForm({ ...eventForm, status: e.target.value as EventRecord["status"] })}><option value="planned">planned</option><option value="live">live</option><option value="closed">closed</option></select></label></div><label className="confirm"><input type="checkbox" checked={eventForm.registrationsOpen} onChange={(e) => setEventForm({ ...eventForm, registrationsOpen: e.target.checked })} />Self-registration open</label><button disabled={busy} onClick={() => void saveEvent()}>Save event</button></section>
-    {eventId && <><section><h2>Sessions</h2><div className="mapping-grid"><label>Label<input value={sessionForm.label} onChange={(e) => setSessionForm({ ...sessionForm, label: e.target.value })} /></label><label>Start<input type="datetime-local" value={sessionForm.startAt} onChange={(e) => setSessionForm({ ...sessionForm, startAt: e.target.value })} /></label><label>End<input type="datetime-local" value={sessionForm.endAt} onChange={(e) => setSessionForm({ ...sessionForm, endAt: e.target.value })} /></label><label>Grace minutes<input type="number" min="0" value={sessionForm.graceMin} onChange={(e) => setSessionForm({ ...sessionForm, graceMin: Number(e.target.value) })} /></label></div><button disabled={busy} onClick={() => void saveSession()}>Create session</button><ul>{sessions.map((session) => <li key={session.sessionId}><strong>{session.label}</strong> ({session.status}) — {new Date(session.startAt).toLocaleString()} <button onClick={() => void setSessionStatus(session, session.status === "open" ? "closed" : "open")}>{session.status === "open" ? "Close" : "Open"}</button> <button onClick={() => void loadQr(session.sessionId)}>Show QR token</button></li>)}</ul>{qr && <p className="notice" role="status"><code>{qr.token}</code> — expires {new Date(qr.expiresAt).toLocaleTimeString()}</p>}</section>
-    <section><h2>Live counts</h2>{summary ? <ul><li>Active attendees: {summary.attendees}</li><li>Present: {summary.present}</li><li>Late: {summary.late}</li><li>Duplicates: {summary.duplicates}</li><li>Collisions: {summary.collisions}</li><li>Mirror pending: {summary.pendingMirror}</li></ul> : <p className="muted">Loading…</p>}{mirror && <p className="notice" role="status">Mirror: {mirror.pending} pending, lag {Math.floor(mirror.lagMs / 1000)}s.</p>}<a href={`/api/admin/events/${encodeURIComponent(eventId)}/export`} download>Download attendance CSV</a></section>
-    <section><h2>Attendance review</h2>{attendance.length === 0 ? <p className="muted">No attendance records.</p> : <div className="table-wrap"><table><thead><tr><th>Time</th><th>Session</th><th>Attendee</th><th>Result</th><th>Detail</th></tr></thead><tbody>{attendance.map((row, index) => <tr key={`${row.tsUtc}-${index}`}><td>{row.tsUtc}</td><td>{row.sessionId}</td><td>{row.attendeeId}</td><td>{row.result}</td><td>{row.detail}</td></tr>)}</tbody></table></div>}</section>
-    <section><h2>Collision review</h2>{collisions.length === 0 ? <p className="muted">No collisions.</p> : collisions.map((source) => <div key={source.attendeeId}><strong>{source.fullName}</strong><select aria-label={`Merge ${source.fullName}`} defaultValue="" onChange={(e) => void merge(source.attendeeId, e.target.value)}><option value="">Merge into…</option>{collisions.filter((target) => target.attendeeId !== source.attendeeId).map((target) => <option key={target.attendeeId} value={target.attendeeId}>{target.fullName}</option>)}</select></div>)}</section>
-    <section><h2>Roster import</h2><label className="file-picker">CSV or XLSX file<input type="file" accept=".csv,.xlsx,.xls" onChange={(e) => { const file = e.target.files?.[0]; if (file) void loadFile(file); }} /></label>{parsed && <><div className="mapping-grid">{([ ["Name", "name"], ["Email", "email"], ["Phone", "phone"], ["Group", "group"] ] as const).map(([label, key]) => <label key={key}>{label}<select value={mapping[key] ?? ""} onChange={(e) => setMapping({ ...mapping, [key]: e.target.value === "" ? undefined : Number(e.target.value) })}><option value="">Not mapped</option>{parsed.headers.map((header, index) => <option key={index} value={index}>{header}</option>)}</select></label>)}</div><label>Mode<select value={importMode} onChange={(e) => setImportMode(e.target.value as "merge" | "replace")}><option value="merge">Merge</option><option value="replace">Replace</option></select></label>{importMode === "replace" && <label className="confirm"><input type="checkbox" checked={confirmReplace} onChange={(e) => setConfirmReplace(e.target.checked)} />Confirm replacement</label>}<button onClick={() => void importRoster()}>Import roster</button></>}</section></>}
+    {eventId && <><section><h2>Sessions</h2><p className="muted">Set start/end directly. Browser shows typing-friendly date and time controls.</p><div className="mapping-grid"><label>Label<input list="session-labels" placeholder="Morning session" value={sessionForm.label} onChange={(e) => setSessionForm({ ...sessionForm, label: e.target.value })} /><datalist id="session-labels"><option value="Morning" /><option value="Afternoon" /><option value="Evening" /><option value="Whole day" /></datalist></label><label>Start<input type="datetime-local" step="60" value={sessionForm.startAt} onChange={(e) => setSessionForm({ ...sessionForm, startAt: e.target.value })} /></label><label>End<input type="datetime-local" step="60" value={sessionForm.endAt} onChange={(e) => setSessionForm({ ...sessionForm, endAt: e.target.value })} /></label><label>Grace minutes<input type="number" min="0" step="1" inputMode="numeric" value={sessionForm.graceMin} onChange={(e) => setSessionForm({ ...sessionForm, graceMin: Number(e.target.value) })} /></label></div><button disabled={busy} onClick={() => void saveSession()}>Create session</button><ul className="session-list">{sessions.map((session) => <li key={session.sessionId}><strong>{session.label}</strong> <span className="muted">({session.status}) — {new Date(session.startAt).toLocaleString()}</span><span className="session-actions"><button onClick={() => void setSessionStatus(session, session.status === "open" ? "closed" : "open")}>{session.status === "open" ? "Close" : "Open"}</button><a href={`/kiosk.html?eventId=${encodeURIComponent(eventId)}&sessionId=${encodeURIComponent(session.sessionId)}`} target="_blank" rel="noopener"><button type="button">Open QR kiosk</button></a></span></li>)}</ul>{qr && <div className="notice qr-panel" role="status"><img src={qr.imageUrl} alt="QR code for attendance check-in" /><p>QR expires {new Date(qr.expiresAt).toLocaleTimeString()}.</p><a href={`/kiosk.html?eventId=${encodeURIComponent(eventId)}&sessionId=${encodeURIComponent(qrSessionId)}`} target="_blank" rel="noopener">Open scannable kiosk</a></div>}</section>
+      <section><h2>Live counts</h2>{summary ? <ul><li>Active attendees: {summary.attendees}</li><li>Present: {summary.present}</li><li>Late: {summary.late}</li><li>Duplicates: {summary.duplicates}</li><li>Collisions: {summary.collisions}</li><li>Mirror pending: {summary.pendingMirror}</li></ul> : <p className="muted">Loading…</p>}{mirror && <p className="notice" role="status">Mirror: {mirror.pending} pending, lag {Math.floor(mirror.lagMs / 1000)}s.</p>}<a href={`/api/admin/events/${encodeURIComponent(eventId)}/export`} download>Download attendance CSV</a></section>
+      <section><h2>Attendance review</h2>{attendance.length === 0 ? <p className="muted">No attendance records.</p> : <div className="table-wrap"><table><thead><tr><th>Time</th><th>Session</th><th>Attendee</th><th>Result</th><th>Detail</th></tr></thead><tbody>{attendance.map((row, index) => <tr key={`${row.tsUtc}-${index}`}><td>{row.tsUtc}</td><td>{row.sessionId}</td><td>{row.attendeeId}</td><td>{row.result}</td><td>{row.detail}</td></tr>)}</tbody></table></div>}</section>
+      <section><h2>Collision review</h2>{collisions.length === 0 ? <p className="muted">No collisions.</p> : collisions.map((source) => <div key={source.attendeeId}><strong>{source.fullName}</strong><select aria-label={`Merge ${source.fullName}`} defaultValue="" onChange={(e) => void merge(source.attendeeId, e.target.value)}><option value="">Merge into…</option>{collisions.filter((target) => target.attendeeId !== source.attendeeId).map((target) => <option key={target.attendeeId} value={target.attendeeId}>{target.fullName}</option>)}</select></div>)}</section>
+      <section><h2>Roster import</h2><label className="file-picker">CSV or XLSX file<input type="file" accept=".csv,.xlsx,.xls" onChange={(e) => { const file = e.target.files?.[0]; if (file) void loadFile(file); }} /></label>{parsed && <><div className="mapping-grid">{([ ["Name", "name"], ["Email", "email"], ["Phone", "phone"], ["Group", "group"] ] as const).map(([label, key]) => <label key={key}>{label}<select value={mapping[key] ?? ""} onChange={(e) => setMapping({ ...mapping, [key]: e.target.value === "" ? undefined : Number(e.target.value) })}><option value="">Not mapped</option>{parsed.headers.map((header, index) => <option key={index} value={index}>{header}</option>)}</select></label>)}</div><label>Mode<select value={importMode} onChange={(e) => setImportMode(e.target.value as "merge" | "replace")}><option value="merge">Merge</option><option value="replace">Replace</option></select></label>{importMode === "replace" && <label className="confirm"><input type="checkbox" checked={confirmReplace} onChange={(e) => setConfirmReplace(e.target.checked)} />Confirm replacement</label>}<button onClick={() => void importRoster()}>Import roster</button></>}</section></>}
   </main>;
 }

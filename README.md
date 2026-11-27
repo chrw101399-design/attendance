@@ -106,6 +106,50 @@ Common errors:
 
 Run local checks with `npm test` and `npm run check`. A production mirror flush should only be tested with a safe test event and a verified spreadsheet row.
 
+## Live and deployed links
+
+Production Worker:
+
+- [Production home](https://attendance.chr-w-10-13-99.workers.dev/)
+- [Admin console](https://attendance.chr-w-10-13-99.workers.dev/admin) — Cloudflare Access required
+- [Attendee check-in](https://attendance.chr-w-10-13-99.workers.dev/checkin.html)
+- [Kiosk](https://attendance.chr-w-10-13-99.workers.dev/kiosk.html)
+- [Health](https://attendance.chr-w-10-13-99.workers.dev/api/health)
+- [Durable Object health](https://attendance.chr-w-10-13-99.workers.dev/api/health/do)
+- [Sheets health](https://attendance.chr-w-10-13-99.workers.dev/api/health/sheets) — admin/diagnostic use
+- [Attendance template](https://attendance.chr-w-10-13-99.workers.dev/attendance-template.xlsx)
+
+Public API routes:
+
+- `GET /api/roster/selectable/:eventId`
+- `GET /api/token/:eventId/:sessionId`
+- `POST /api/checkin`
+- `POST /api/self-register`
+
+Admin API routes — Cloudflare Access required:
+
+- `GET /api/admin/events`
+- `GET|PUT /api/admin/events/:eventId`
+- `GET|POST /api/admin/events/:eventId/sessions`
+- `PATCH /api/admin/events/:eventId/sessions/:sessionId`
+- `GET /api/admin/events/:eventId/summary`
+- `GET /api/admin/events/:eventId/attendance`
+- `GET /api/admin/events/:eventId/collisions`
+- `POST /api/admin/events/:eventId/attendees/:attendeeId/merge`
+- `GET /api/admin/events/:eventId/export`
+- `POST /api/admin/events/:eventId/roster/import`
+- `GET /api/admin/events/:eventId/mirror-status`
+- `GET /api/admin/mirror-status`
+
+Staging deployment:
+
+- Worker name: `attendance-staging`
+- URL: configure after staging deploy; do not infer URL from production
+- Config: `wrangler.staging.jsonc`
+- Staging event: `f010-test-20261127`
+
+Internal Durable Object URLs such as `https://event.internal/...` are Worker-to-DO addresses, not browser links.
+
 ## Step 5: GitHub and Cloudflare deployment
 
 Repository setup:
@@ -156,6 +200,58 @@ Access policy:
 - Allow only admin email or approved group.
 - Keep `/`, `/api/checkin`, `/api/self-register`, `/api/roster/*`, and `/api/token/*` public.
 - Do not put Google service-account credentials or Access secrets in GitHub variables that are exposed to browser code.
+
+## F-013 event-day runbook
+
+Use staging event `f010-test-20261127` and staging Sheet for rehearsal. Never use production attendee data for rehearsal. Durable Object state is authoritative; Google Sheets is mirror only.
+
+### T-30
+
+1. Confirm deployment commit, `/api/health`, `/api/health/do`, and Access-protected `/admin` respond as expected.
+2. Confirm event date, roster import, session times, timezone, registration policy, and QR fallback token.
+3. Open staging admin. Check attendee count, session status, and mirror status: pending `0`, warning `false`.
+4. Test one synthetic check-in on two phones over venue Wi-Fi and mobile data. Verify attendee selection, success screen, duplicate retry, and admin live count.
+5. Keep fallback desk materials ready: printed roster, session QR URL/token, operator phone, and event/session IDs. Do not record secrets on paper.
+
+### Live monitoring
+
+- Admin watches live counts, duplicate/rejected results, and mirror pending/lag status.
+- Durable Object remains source of truth during Sheets outage. Do not edit `Attendees` or `AttendanceLog` Sheets during event.
+- If mirror warning reaches five minutes, record time and continue check-in; retry mirror after connectivity or credential recovery.
+- Stop opening new sessions if health or Durable Object checks fail. Preserve current session and contact operator.
+
+### Fallback desk process
+
+1. Verify attendee identity against printed roster or admin roster.
+2. Record event ID, session ID, attendee ID/name, UTC/local time, and reason on controlled desk sheet.
+3. Do not claim manual entries are authoritative. After service recovery, submit each attendance once through public flow or reconcile through admin review.
+4. Escalate repeated failures, duplicate conflicts, or unknown attendees to admin. Preserve desk records for close-out.
+
+### Close-out, export, archive
+
+1. Close session and stop new check-ins. Confirm final live counts and unresolved collisions.
+2. Wait for mirror pending count to reach `0`; if Sheets remains down, retain Durable Object as authority and document lag.
+3. Download admin attendance CSV. Check row count, duplicate/rejected audit rows, source, and review flags.
+4. Archive CSV, incident notes, fallback desk records, deployment commit, and mirror status snapshot in restricted event storage.
+5. Export or archive the Google Sheet after mirror catch-up. Keep raw records read-only; never delete Durable Object data as part of archive.
+
+### F-013 rehearsal checklist
+
+Run local regression:
+
+```powershell
+npm test
+npm run check
+npm run build
+```
+
+Run staging rehearsal with synthetic event data:
+
+```powershell
+npx wrangler deploy --config wrangler.staging.jsonc
+```
+
+Manual acceptance requires two or more real phones, venue Wi-Fi, mobile data, QR scan, roster selection, duplicate retry, late check-in, admin counts, Sheets outage/recovery, CSV export, and archive review. Record result and timestamp in release notes. Do not mark F-013 complete until attendee-facing check-in UI and scannable QR display work on those devices.
 
 ## User manual: Admin console
 

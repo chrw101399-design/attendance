@@ -16,3 +16,6 @@ out/
 **/credentials*.json
 *.pem
 *.key
+
+# Synthetic local test data
+/test-data/
