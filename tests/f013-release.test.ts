@@ -50,19 +50,23 @@ const attendee: RosterAttendee = {
 async function makeScenario() {
   const { values, storage } = makeStorage({ attendees: [attendee], activeAttendeeIds: [attendee.attendeeId] });
   const durableObject = new EventDurableObject({ storage } as unknown as DurableObjectState);
+  const nowMs = Date.now();
+  const eventDate = new Date(nowMs).toISOString().slice(0, 10);
   const eventResponse = await durableObject.fetch(new Request("https://event.internal/event", {
     method: "PUT",
-    body: JSON.stringify({ eventId: "f013-event", name: "F-013 rehearsal", eventDate: "2026-12-01", rosterMode: "closed", registrationsOpen: false, status: "live" }),
+    body: JSON.stringify({ eventId: "f013-event", name: "F-013 rehearsal", eventDate, rosterMode: "closed", registrationsOpen: false, status: "live" }),
   }));
   assert.equal(eventResponse.status, 200);
+  const startAt = new Date(nowMs - 60_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+  const endAt = new Date(nowMs + 60_000).toISOString().replace(/\.\d{3}Z$/, "Z");
   const sessionResponse = await durableObject.fetch(new Request("https://event.internal/sessions", {
     method: "POST",
-    body: JSON.stringify({ label: "Main", startAt: "2026-12-01T00:00:00Z", endAt: "2026-12-01T23:00:00Z", graceMin: 10, status: "open" }),
+    body: JSON.stringify({ label: "Main", startAt, endAt, graceMin: 10, status: "open" }),
   }));
   assert.equal(sessionResponse.status, 201);
   const session = (await sessionResponse.json() as { session: { sessionId: string } }).session;
   values.set("mirrorOutbox", []);
-  return { durableObject, values, sessionId: session.sessionId, nowMs: Date.parse("2026-12-01T12:00:00Z") };
+  return { durableObject, values, sessionId: session.sessionId, nowMs };
 }
 
 function checkInRequest(sessionId: string, nowMs: number, requestId: number) {

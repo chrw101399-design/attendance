@@ -316,8 +316,7 @@ planned/closed during setup, and open or close them deliberately when managing
 the event. The event's status and a session's open/closed status are separate
 controls.
 
-**Show QR token** retrieves a session token and shows its expiry time. It does
-not currently create a scannable QR image; see the live-use limitation below.
+**Open QR kiosk** opens a scannable QR image. QR encodes a short HTTPS check-in URL containing event and session IDs. Check-in page requests a fresh signed token from Worker, so scanners open link directly without copying token text.
 
 ### 4. Monitor attendance and export records
 
@@ -336,16 +335,10 @@ For the selected event:
 Production changes affect real event data. Avoid creating test records or
 importing attendee data in production unless you intend to retain it.
 
-### Important: attendee check-in is not ready for live use
+### Live-use note
 
-The public attendee check-in page is still a placeholder, and **Show QR token**
-displays token text rather than a scannable QR code. Attendees therefore
-cannot yet complete check-in through the public UI. Do not use the token as a
-live check-in process until the attendee-facing check-in flow and scannable QR
-display are implemented and rehearsed.
+QR check-in flow now opens directly from scanner. Verify on actual phones over venue Wi-Fi and mobile data before event day.
 
 ## Remaining release work
 
-- Implement and verify the attendee-facing check-in flow and scannable QR
-  display.
 - Rehearse event-day failure scenarios before relying on the system live.

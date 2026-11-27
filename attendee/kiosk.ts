@@ -22,6 +22,7 @@ async function refreshQr() {
     checkInUrl.searchParams.set("eventId", eventId);
     checkInUrl.searchParams.set("sessionId", sessionId);
     checkInUrl.searchParams.set("token", body.token);
+    if (staticFallback) checkInUrl.searchParams.set("static", "1");
 
     const image = root.querySelector<HTMLImageElement>("#qr-image");
     if (image) {

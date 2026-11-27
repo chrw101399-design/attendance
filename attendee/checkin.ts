@@ -10,7 +10,8 @@ const root = document.querySelector<HTMLDivElement>("#app");
 const params = new URLSearchParams(location.search);
 const eventId = params.get("eventId") ?? "";
 const sessionId = params.get("sessionId") ?? "";
-const token = params.get("token") ?? "";
+let token = params.get("token") ?? "";
+const staticFallback = params.get("static") === "1";
 
 function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -38,9 +39,18 @@ function showMessage(container: HTMLElement, text: string, kind: "ok" | "error" 
   container.replaceChildren(element("p", `notice ${kind}`, text));
 }
 
+async function loadToken() {
+  if (token) return;
+  const response = await fetch(`/api/token/${encodeURIComponent(eventId)}/${encodeURIComponent(sessionId)}${staticFallback ? "?static=1" : ""}`);
+  const body = await response.json() as { token?: string; error?: string };
+  if (!response.ok || !body.token) throw new Error(body.error ?? "Could not issue check-in token");
+  token = body.token;
+}
+
 async function checkIn(attendeeId: string, notice: HTMLElement) {
   showMessage(notice, "Submitting attendance…");
   try {
+    await loadToken();
     const body = await jsonRequest<CheckInResponse>("/api/checkin", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -55,6 +65,8 @@ async function checkIn(attendeeId: string, notice: HTMLElement) {
     if (body.result === "present") showMessage(notice, "Check-in confirmed.", "ok");
     else if (body.result === "present_late") showMessage(notice, "Late check-in confirmed.", "ok");
     else if (body.result === "duplicate") showMessage(notice, "You are already checked in.", "info");
+    else if (body.detail === "outside_session_window") showMessage(notice, "This session is outside its scheduled time. Ask the event operator to open the correct session.", "error");
+    else if (body.detail === "session_not_open") showMessage(notice, "This session is not open yet. Ask the event operator to open it.", "error");
     else showMessage(notice, `Check-in was not accepted: ${body.detail ?? body.result}`, "error");
   } catch (error) {
     showMessage(notice, error instanceof Error ? error.message : "Check-in failed. Please retry.", "error");
@@ -112,6 +124,13 @@ async function selfRegisterDifferent(fullName: string, notice: HTMLElement) {
 }
 
 if (root) {
+  const normalizedToken = token.trim();
+  if (normalizedToken.startsWith("http://") || normalizedToken.startsWith("https://")) {
+    try {
+      const scannedUrl = new URL(normalizedToken);
+      token = scannedUrl.searchParams.get("token") ?? token;
+    } catch { /* keep original token for normal validation */ }
+  }
   if (!eventId || !sessionId || !token) {
     root.replaceChildren(element("section", "card", "Invalid or incomplete QR link."));
   } else {

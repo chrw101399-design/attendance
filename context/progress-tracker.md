@@ -226,6 +226,10 @@
 - `npm test` — PASS: 46 tests, 0 fail.
 - `npm run check` — PASS.
 - `npm run build` — PASS.
+- Fixed QR payload to encode HTTPS check-in URL with event/session IDs; check-in page requests fresh signed token instead of exposing token in QR URL.
+- Fixed check-in timing to use server time, preventing stale/future caller timestamps from causing false `outside_session_window` errors. Added server-time regression test.
+- Added scanner-friendly errors for closed/out-of-window sessions and token normalization for scanners that return full URLs.
+- `npm test` — PASS: 47 tests, 0 fail. `npm run check` — PASS. `npm run build:attendee` — PASS.
 - Remaining: staging and live venue rehearsal on two or more real devices over venue Wi-Fi and mobile data.
 
 ## Current next actions

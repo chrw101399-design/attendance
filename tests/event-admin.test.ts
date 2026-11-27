@@ -25,11 +25,23 @@ test("admin event and session state becomes authoritative for check-in", async (
   assert.equal(eventResponse.status, 200);
   const sessionResponse = await durableObject.fetch(new Request("https://event.internal/sessions", { method: "POST", body: JSON.stringify({ label: "Morning", startAt: "2026-12-01T00:00:00Z", endAt: "2026-12-01T23:00:00Z", graceMin: 10 }) }));
   const session = (await sessionResponse.json() as { session: { sessionId: string } }).session;
-  const nowMs = Date.parse("2026-12-01T12:00:00Z");
+  const nowMs = Date.now();
   const token = generateCheckInToken("evt-1", session.sessionId, nowMs, { toleranceMin: 2, lifetimeMin: 10 }, "secret").token;
   const checkin = await durableObject.fetch(new Request("https://event.internal/checkin", { method: "POST", headers: { "X-QR-Secret": "secret" }, body: JSON.stringify({ eventId: "evt-1", sessionId: session.sessionId, attendeeId: attendee.attendeeId, token, clientReqId: "req-1", nowMs, session: { status: "open", startAt: 0, endAt: 0, graceMin: 0 } }) }));
   assert.equal(checkin.status, 200);
   assert.equal((await checkin.json() as { result: string }).result, "rejected_window");
+});
+
+test("check-in uses server time instead of caller-supplied time", async () => {
+  const durableObject = makeDo({ attendees: [attendee], activeAttendeeIds: [attendee.attendeeId] });
+  await durableObject.fetch(new Request("https://event.internal/event", { method: "PUT", body: JSON.stringify({ eventId: "evt-time", name: "Current", eventDate: new Date().toISOString().slice(0, 10), rosterMode: "closed", registrationsOpen: false, status: "live" }) }));
+  const startAt = new Date(Date.now() - 60_000).toISOString();
+  const endAt = new Date(Date.now() + 60_000).toISOString();
+  const sessionResponse = await durableObject.fetch(new Request("https://event.internal/sessions", { method: "POST", body: JSON.stringify({ label: "Current", startAt: startAt.replace(/\.\d{3}Z$/, "Z"), endAt: endAt.replace(/\.\d{3}Z$/, "Z"), graceMin: 0, status: "open" }) }));
+  const currentSession = (await sessionResponse.json() as { session: { sessionId: string } }).session;
+  const currentToken = generateCheckInToken("evt-time", currentSession.sessionId, Date.now(), { toleranceMin: 2, lifetimeMin: 10 }, "secret").token;
+  const response = await durableObject.fetch(new Request("https://event.internal/checkin", { method: "POST", headers: { "X-QR-Secret": "secret" }, body: JSON.stringify({ eventId: "evt-time", sessionId: currentSession.sessionId, attendeeId: attendee.attendeeId, token: currentToken, clientReqId: "req-server-time", nowMs: 0 }) }));
+  assert.equal((await response.json() as { result: string }).result, "present");
 });
 
 test("collision merge preserves source attendee and audit record", async () => {

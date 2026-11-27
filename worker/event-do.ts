@@ -308,7 +308,7 @@ export class EventDurableObject implements DurableObject {
       ? { status: storedSession.status, startAt: Date.parse(storedSession.startAt), endAt: Date.parse(storedSession.endAt), graceMin: storedSession.graceMin }
       : undefined;
     if (!session || !Number.isFinite(session.startAt) || !Number.isFinite(session.endAt)) return Response.json({ error: "Session not found" }, { status: 404 });
-    const nowMs = body.nowMs ?? Date.now();
+    const nowMs = Date.now();
     const result = await this.state.storage.transaction(async (txn: DurableObjectTransaction) => {
       const requestResults = (await txn.get<Record<string, AttendanceRecord>>("checkInRequests")) ?? {};
       const existing = (await txn.get<Record<string, AttendanceRecord>>("attendanceByKey")) ?? {};
