@@ -157,40 +157,96 @@ Access policy:
 - Keep `/`, `/api/checkin`, `/api/self-register`, `/api/roster/*`, and `/api/token/*` public.
 - Do not put Google service-account credentials or Access secrets in GitHub variables that are exposed to browser code.
 
-## Admin event workflow
+## User manual: Admin console
 
-Open `/admin` after signing in through Cloudflare Access.
+The admin console is a single page at `/admin`, protected by Cloudflare Access.
+Sign in with an email allowed by the Access policy. The page is arranged into
+sections for **Event**, **Sessions**, **Live counts**, **Attendance review**,
+**Collision review**, and **Roster import**. Select an event at the top to
+review and operate on it; the sections below refresh for that event.
 
-1. Create an event with its name and date. The event ID is generated as
-   `evt_YYYYMMDD`, so avoid creating more than one event for the same date.
-   Keep its status as `planned` while setting it up.
-2. Choose the roster mode intentionally:
-   - `closed` for attendees imported from a roster only.
-   - `hybrid` for a roster plus walk-ins when **Self-registration open** is
-     enabled.
-   - `open` for self-registration when **Self-registration open** is enabled.
-3. Import a CSV or XLSX roster. Map the required **Name** column and any
-   optional columns. **Merge** is the default and is safer for routine updates;
-   **Replace** can deactivate attendees missing from the uploaded file. Review
-   the import results and mirror status. Imported data is written to the
-   configured Google Sheets mirror.
-4. Create one or more sessions with a label, start/end times, and grace period.
-   Times are interpreted in the browser's local timezone. Keep sessions
-   planned until check-in is ready.
-5. Review attendee counts, collisions, mirror status, and CSV export in the
-   admin console.
+### 1. Create or select an event
+
+In **Event**, use the dropdown to select an existing event or choose **New
+event**. For a new event, enter its name and date, choose the roster mode, and
+leave **Status** as `planned` while setting it up. Select **Save event**.
+
+New event IDs are generated as `evt_YYYYMMDD` from the event date. Use only one
+new event per date; creating another for the same date can reuse that ID.
+Selecting an existing event loads its settings into the form; save after
+changing those settings.
+
+Choose the roster mode based on how attendees will be added:
+
+- `closed`: use an imported roster; do not enable self-registration.
+- `hybrid`: use an imported roster and optionally allow walk-ins by enabling
+  **Self-registration open**.
+- `open`: allow self-registration only when **Self-registration open** is
+  enabled.
+
+Only enable self-registration if you intend to accept registrations through
+the public registration flow.
+
+### 2. Import an attendee roster
+
+Select the event first, then open **Roster import**:
+
+1. Choose a CSV, XLS, or XLSX file. For a workbook, the first worksheet is
+   used. Files can contain up to 10,001 rows total and 100 columns.
+2. Map **Name** to the column containing each attendee's name. Name is
+   required. Map **Email**, **Phone**, and **Group** if those columns are
+   present; common header names may be detected automatically.
+3. Use **Merge** for routine additions or updates. It matches existing
+   attendees where possible and adds new records.
+4. Use **Replace** only when the file is the complete, authoritative roster.
+   It requires **Confirm replacement** and can deactivate attendees not in the
+   uploaded file.
+5. Select **Import roster** and review the result message, counts, and mirror
+   status.
+
+Imported attendee data is also sent to the configured Google Sheets mirror.
+Do not manually edit the mirror sheets while an event is live. If the pending
+count or lag remains elevated, check the mirror/health configuration before
+relying on the spreadsheet as up to date.
+
+### 3. Create and manage sessions
+
+In **Sessions**, enter a label, start time, end time, and grace period in
+minutes, then select **Create session**. The date/time fields use the browser's
+local timezone; the application stores the values in UTC.
+
+Each created session has an **Open** or **Close** control. Keep sessions
+planned/closed during setup, and open or close them deliberately when managing
+the event. The event's status and a session's open/closed status are separate
+controls.
+
+**Show QR token** retrieves a session token and shows its expiry time. It does
+not currently create a scannable QR image; see the live-use limitation below.
+
+### 4. Monitor attendance and export records
+
+For the selected event:
+
+- **Live counts** shows active attendees, present and late counts, duplicates,
+  collisions, and pending mirror writes.
+- **Attendance review** lists recorded attendance attempts, including time,
+  session, attendee, result, and detail.
+- **Download attendance CSV** downloads the selected event's attendance
+  records.
+- **Collision review** lets an admin merge one attendee record into another.
+  Check that the records belong to the same person before merging; the source
+  record is retained in audit history.
 
 Production changes affect real event data. Avoid creating test records or
 importing attendee data in production unless you intend to retain it.
 
-## Important: attendee check-in is not ready for live use
+### Important: attendee check-in is not ready for live use
 
 The public attendee check-in page is still a placeholder, and **Show QR token**
-in the admin console displays token text rather than a scannable QR code.
-Attendees therefore cannot yet complete check-in through the public UI. Do not
-open a session or distribute the token as a live check-in process until the
-attendee-facing check-in flow and scannable QR display are implemented and
-rehearsed.
+displays token text rather than a scannable QR code. Attendees therefore
+cannot yet complete check-in through the public UI. Do not use the token as a
+live check-in process until the attendee-facing check-in flow and scannable QR
+display are implemented and rehearsed.
 
 ## Remaining release work
 
