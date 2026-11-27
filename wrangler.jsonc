@@ -1,0 +1,39 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "attendance",
+  "main": "worker/index.ts",
+  "compatibility_date": "2025-03-20",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "assets": {
+    "directory": "./out",
+    "not_found_handling": "single-page-application"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "EVENTS",
+        "class_name": "EventDurableObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "EventDurableObject"
+      ]
+    }
+  ],
+  "vars": {
+  "TZ_DISPLAY": "Asia/Manila",
+  "SHEET_ID": "1puq3RCGJxVEu53wndY3-cPP8aNkUuANsBADcHjb88Yk",
+  "MIRROR_EVENT_IDS": "event-test"
+},
+  "triggers": {
+    "crons": [
+      "*/1 * * * *"
+    ]
+  }
+}

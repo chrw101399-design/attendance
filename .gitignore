@@ -1,0 +1,18 @@
+node_modules/
+.next/
+out/
+.wrangler/
+*.tsbuildinfo
+
+# Local credentials and environment secrets
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+/secrets/
+/cloudconsole/
+**/service-account*.json
+**/*service-account*.json
+**/credentials*.json
+*.pem
+*.key

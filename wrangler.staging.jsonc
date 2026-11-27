@@ -1,0 +1,39 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "attendance-staging",
+  "main": "worker/index.ts",
+  "compatibility_date": "2025-03-20",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "assets": {
+    "directory": "./out",
+    "not_found_handling": "single-page-application"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "EVENTS",
+        "class_name": "EventDurableObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "EventDurableObject"
+      ]
+    }
+  ],
+  "vars": {
+    "TZ_DISPLAY": "Asia/Manila",
+    "SHEET_ID": "1P1Wwsz3BXcoCneAyOQBZCQpWB_8oJ5D845huehAJYpA",
+    "MIRROR_EVENT_IDS": "f010-test-20261127"
+  },
+  "triggers": {
+    "crons": [
+      "*/1 * * * *"
+    ]
+  }
+}
