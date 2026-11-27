@@ -22,7 +22,7 @@
 | Build feature list | DONE | Feature IDs and acceptance criteria in `feature-spec.md` |
 | Plan by feature | IN PROGRESS | Ordered backlog below; update estimates/dependencies as work proceeds |
 | Design by feature | IN PROGRESS | Record feature-specific design decisions before implementation |
-| Build by feature | IN PROGRESS | Next feature: F-012 Deploy to Cloudflare from GitHub |
+| Build by feature | IN PROGRESS | Next feature: F-013 Prepare release and event operations |
 
 ## Feature backlog
 
@@ -39,7 +39,7 @@
 | F-009 | Self-register walk-ins and resolve name collisions | P1 | DONE | F-008 |
 | F-010 | Mirror Durable Object events to Sheets with retry/lag status | P0 | DONE | F-003, F-008 |
 | F-011 | Admin event/session/import/review/export UI | P1 | DONE | F-004–F-010 |
-| F-012 | Secure admin with Cloudflare Access and deploy from GitHub | P0 | IN PROGRESS | F-011 |
+| F-012 | Secure admin with Cloudflare Access and deploy from GitHub | P0 | DONE | F-011 |
 | F-013 | Event runbook, load/failure rehearsal, release readiness | P0 | TODO | F-012 |
 
 ## Implementation log
@@ -203,7 +203,9 @@
 - Cloudflare Access allowlist is configured for `chr.w.10.13.99@gmail.com`; production `/admin*` and `/api/admin/*` destinations are protected.
 - Cloudflare dashboard route verification now passes: `/admin` and `/api/admin/events` return `302` to Access; public health and attendee routes remain accessible.
 - `npm run verify:deployment` — PASS with `DEPLOY_URL=https://attendance.chr-w-10-13-99.workers.dev`.
-- F-012 remains IN PROGRESS until GitHub repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, plus the `production` environment variable `DEPLOY_URL`, are configured and a GitHub Actions `main` deployment completes successfully.
+- GitHub Actions run 3 (`45954181941`, commit `7f8320136e2e9b21e3b619ac0e62b901249c03c5`) — PASS: CI tests/build/type check/Wrangler dry-run, production deployment, and deployed route verification all succeeded.
+- Fixed Linux GitHub Actions test discovery by using the explicit `tests/*.test.ts` glob in `package.json`.
+- F-012 acceptance is complete.
 
 ### F-013
 
@@ -211,7 +213,7 @@ F-013 starts after F-012 deployment verification.
 
 ## Current next actions
 
-1. Begin F-012 using the acceptance criteria in `feature-spec.md`.
+1. Begin F-013 using the acceptance criteria in `feature-spec.md`.
 2. Keep Access secrets and Google credentials out of source/context.
 
 ## Decisions and deviations
