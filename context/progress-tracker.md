@@ -38,7 +38,7 @@
 | F-008 | Check in attendee once per session; log duplicates | P0 | DONE | F-006, F-007 |
 | F-009 | Self-register walk-ins and resolve name collisions | P1 | DONE | F-008 |
 | F-010 | Mirror Durable Object events to Sheets with retry/lag status | P0 | DONE | F-003, F-008 |
-| F-011 | Admin event/session/import/review/export UI | P1 | IN PROGRESS | F-004–F-010 |
+| F-011 | Admin event/session/import/review/export UI | P1 | DONE | F-004–F-010 |
 | F-012 | Secure admin with Cloudflare Access and deploy from GitHub | P0 | IN PROGRESS | F-011 |
 | F-013 | Event runbook, load/failure rehearsal, release readiness | P0 | TODO | F-012 |
 
@@ -199,7 +199,11 @@
 - Added explicit Worker `/admin`, `/admin/`, and `/admin/*` Access checks; API checks remain in route handlers.
 - No credentials added to repository.
 - Local checks: `npm test` — PASS: 43 tests; `npm run build` — PASS; `npm run check` — PASS; `npx wrangler deploy --dry-run` — PASS.
-- F-012 remains IN PROGRESS until repository push, GitHub secrets/environment setup, Access allowlist validation, and deployed checks pass.
+- Repository initialized and pushed to `https://github.com/chrw101399-design/attendance.git` on `main` as commit `2eeaae1`.
+- Cloudflare Access allowlist is configured for `chr.w.10.13.99@gmail.com`; production `/admin*` and `/api/admin/*` destinations are protected.
+- Cloudflare dashboard route verification now passes: `/admin` and `/api/admin/events` return `302` to Access; public health and attendee routes remain accessible.
+- `npm run verify:deployment` — PASS with `DEPLOY_URL=https://attendance.chr-w-10-13-99.workers.dev`.
+- F-012 remains IN PROGRESS until GitHub repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, plus the `production` environment variable `DEPLOY_URL`, are configured and a GitHub Actions `main` deployment completes successfully.
 
 ### F-013
 
