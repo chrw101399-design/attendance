@@ -12,7 +12,12 @@ async function check(path, expectedStatus, predicate, init = {}) {
 
 await check("/api/health", 200, (text) => JSON.parse(text).ok === true);
 await check("/api/health/do", 200, (text) => JSON.parse(text).ok === true);
-await check("/", 200, (text) => text.includes("<!DOCTYPE html>") || text.includes("<html"));
+await check("/", 200, (text) =>
+  (text.includes("<!DOCTYPE html>") || text.includes("<html")) &&
+  text.includes('href="/admin"') &&
+  text.includes("Continue to the admin console") &&
+  !text.includes("NEXT_REDIRECT"),
+);
 await check("/api/roster/selectable/__deployment_probe__", 200, (text, response) => response.headers.has("etag") && JSON.parse(text).ok === true);
 await check("/api/checkin", 400, (text) => JSON.parse(text).error === "eventId and sessionId required", {
   method: "POST",

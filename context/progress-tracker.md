@@ -207,6 +207,13 @@
 - Fixed Linux GitHub Actions test discovery by using the explicit `tests/*.test.ts` glob in `package.json`.
 - F-012 acceptance is complete.
 
+### 2026-11-27 — F-012 root navigation follow-up
+
+- Fixed production root rendering a raw Next.js redirect/RSC payload: replaced the static-export server redirect with a client-side full-page redirect to `/admin` and a visible fallback link.
+- Strengthened deployment verification to require the root admin link and reject `NEXT_REDIRECT` output.
+- Local verification: `npm test` — PASS: 43 tests; `npm run check` — PASS; `npm run build` — PASS; `npx wrangler deploy --dry-run` — PASS. Confirmed generated `out/index.html` contains the fallback link and no `NEXT_REDIRECT` or `__next_error__`.
+- Production deployment verification will run on the next `main` push.
+
 ### F-013
 
 F-013 starts after F-012 deployment verification.
