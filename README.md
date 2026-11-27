@@ -157,7 +157,43 @@ Access policy:
 - Keep `/`, `/api/checkin`, `/api/self-register`, `/api/roster/*`, and `/api/token/*` public.
 - Do not put Google service-account credentials or Access secrets in GitHub variables that are exposed to browser code.
 
+## Admin event workflow
+
+Open `/admin` after signing in through Cloudflare Access.
+
+1. Create an event with its name and date. The event ID is generated as
+   `evt_YYYYMMDD`, so avoid creating more than one event for the same date.
+   Keep its status as `planned` while setting it up.
+2. Choose the roster mode intentionally:
+   - `closed` for attendees imported from a roster only.
+   - `hybrid` for a roster plus walk-ins when **Self-registration open** is
+     enabled.
+   - `open` for self-registration when **Self-registration open** is enabled.
+3. Import a CSV or XLSX roster. Map the required **Name** column and any
+   optional columns. **Merge** is the default and is safer for routine updates;
+   **Replace** can deactivate attendees missing from the uploaded file. Review
+   the import results and mirror status. Imported data is written to the
+   configured Google Sheets mirror.
+4. Create one or more sessions with a label, start/end times, and grace period.
+   Times are interpreted in the browser's local timezone. Keep sessions
+   planned until check-in is ready.
+5. Review attendee counts, collisions, mirror status, and CSV export in the
+   admin console.
+
+Production changes affect real event data. Avoid creating test records or
+importing attendee data in production unless you intend to retain it.
+
+## Important: attendee check-in is not ready for live use
+
+The public attendee check-in page is still a placeholder, and **Show QR token**
+in the admin console displays token text rather than a scannable QR code.
+Attendees therefore cannot yet complete check-in through the public UI. Do not
+open a session or distribute the token as a live check-in process until the
+attendee-facing check-in flow and scannable QR display are implemented and
+rehearsed.
+
 ## Remaining release work
 
-- Authenticated F-011 staging workflow.
-- Event-day failure rehearsal.
+- Implement and verify the attendee-facing check-in flow and scannable QR
+  display.
+- Rehearse event-day failure scenarios before relying on the system live.
